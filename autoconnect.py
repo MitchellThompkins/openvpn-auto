@@ -47,10 +47,10 @@ class openVpn():
         # Create a path to the vpn configuration
         path = os.path.join(self.vpnDirList, self.vpnFile)
 
+        tmpVpnFile = tempfile.NamedTemporaryFile(delete=True)
+        tmpVpnConf = tempfile.NamedTemporaryFile(delete=True)
 
         try:
-            tmpVpnFile = tempfile.NamedTemporaryFile(delete=True)
-            tmpVpnConf = tempfile.NamedTemporaryFile(delete=True)
 
             with open(tmpVpnConf.name, 'w') as f:
                 f.write(self.user)
@@ -58,7 +58,7 @@ class openVpn():
                 f.write(self.passw)
 
             #authStr = 'auth-user-pass /etc/openvpn/openvpn_auth.auth'
-            authStr = 'auth-user-pass' + tmpVpnConf.name
+            authStr = 'auth-user-pass ' + tmpVpnConf.name
 
             with open(path, 'r') as f:
                 c = f.read()
@@ -71,6 +71,10 @@ class openVpn():
 
         except Exception as e:
             print(e)
+
+        finally:
+            tmpVpnFile.close()
+            tmpVpnConf.close()
 
     def createAuthFile(self):
         pass
