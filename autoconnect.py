@@ -42,46 +42,22 @@ class openVpn():
 
         path = os.path.join(self.vpnDirList, self.vpnFile)
 
-        path = os.path.join("/etc/openvpn", "test-za-jnb.prod.surfshark.com_tcp.ovpn")
-
-        #try:
-        tmpPath = tempfile.NamedTemporaryFile(delete=True)
-
-        #shutil.copy(path, tmpPath.name)
-
         editFile = 'auth-user-pass /etc/openvpn/openvpn_auth.auth'
 
-        content_u = tmpPath.read().decode('utf-8')
+        try:
+            tmpVpnFile = tempfile.NamedTemporaryFile(delete=True)
 
-        #print(content_u)
+            with open(path, 'r') as f:
+                c = f.read()
+                cNew = re.sub(r'\bauth-user-pass\b', editFile, c, flags = re.M)
 
-        #re.sub('\bauth-user-pass\b', 'test', content)
+                with open(tmpVpnFile.name, 'w') as v:
+                    v.write(cNew)
 
-        with open (tmpPath.name, 'r') as f:
-            content = f.read()
-            #print(content)
-            #content_new = re.sub('\bauth-user-pass\b', 'test', content, flags = re.M)
-            content_new = re.sub(r'\bauth-user-pass\b', editFile, content, flags = re.M)
+            subprocess.call(["openvpn", tmpVpnFile.name])
 
-            print(content_new)
-
-        print('\n------------------------\n')
-
-        #content = tmpPath.read().decode('utf-8')
-        #print(content)
-
-        print(tmpPath.name)
-        #subprocess.call(["openvpn", tmpPath.name])
-
-            #subprocess.call(["openvpn", tmpPath.name])
-
-        #except:
-        #    print("Couldn't create temporary file")
-
-        #subprocess.call(["openvpn", path])
-        #p = subprocess.Popen(["openvpn", path])#, shell=True)#, stdin=subprocess.PIPE, stdout=subprocess.PIPE)
-        #p.wait()
-
+        except Exception as e:
+            print(e)
 
 
 if __name__ == "__main__":
