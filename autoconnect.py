@@ -5,9 +5,36 @@ import sys
 import random
 import argparse
 import tempfile
-import shutil
+import threading 
 
-class openVpn():
+#def thread(process, **kwargs):
+#    t1 = threading.Thread(target=process, args=(**kwargs))
+#
+#
+#def helper(func):
+#    def wrapper():
+#        tmpOutput = tempfile.NamedTemporaryFile(delete=True)
+#        callOpenvpn()
+#    pass
+
+def callOpenvpn(vpnConf):
+
+    try:
+        tmpOutput = tempfile.NamedTemporaryFile(delete=True)
+        #subprocess.call(["openvpn", vpnConf], stdout=tmpOutput)
+        subprocess.call(["openvpn", vpnConf])
+
+    except Exception as e:
+        print(e)
+
+    finally:
+        tmpOutput.close()
+
+
+def callUfw(self):
+    pass
+
+class openVpn:
 
     def __init__(self, vpnDirList, tcp, udp, user, passw, vpnFile=None):
         self.vpnDirList = vpnDirList
@@ -48,17 +75,16 @@ class openVpn():
         path = os.path.join(self.vpnDirList, self.vpnFile)
 
         tmpVpnFile = tempfile.NamedTemporaryFile(delete=True)
-        tmpVpnConf = tempfile.NamedTemporaryFile(delete=True)
+        tmpVpnAuth = tempfile.NamedTemporaryFile(delete=True)
 
         try:
 
-            with open(tmpVpnConf.name, 'w') as f:
+            with open(tmpVpnAuth.name, 'w') as f:
                 f.write(self.user)
                 f.write('\n')
                 f.write(self.passw)
 
-            #authStr = 'auth-user-pass /etc/openvpn/openvpn_auth.auth'
-            authStr = 'auth-user-pass ' + tmpVpnConf.name
+            authStr = 'auth-user-pass ' + tmpVpnAuth.name
 
             with open(path, 'r') as f:
                 c = f.read()
@@ -67,17 +93,14 @@ class openVpn():
                 with open(tmpVpnFile.name, 'w') as v:
                     v.write(cNew)
 
-            subprocess.call(["openvpn", tmpVpnFile.name])
+            callOpenvpn(tmpVpnFile.name)
 
         except Exception as e:
             print(e)
 
         finally:
             tmpVpnFile.close()
-            tmpVpnConf.close()
-
-    def createAuthFile(self):
-        pass
+            tmpVpnAuth.close()
 
 
 if __name__ == "__main__":
