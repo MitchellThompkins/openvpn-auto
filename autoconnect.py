@@ -6,6 +6,7 @@ import random
 import argparse
 import tempfile
 import threading 
+import time
 
 #def thread(process, **kwargs):
 #    t1 = threading.Thread(target=process, args=(**kwargs))
@@ -17,18 +18,51 @@ import threading
 #        callOpenvpn()
 #    pass
 
+def readLog(log):
+    print(log.name)
+    while True:
+        logFile = log.tell()
+        line = log.readline()
+        if not line:
+            time.sleep(0.1) # Sleep briefly
+            continue
+        else:
+            print(line)
+        #yield line
+
+def startConnect(vpnConf, log):
+        i = 1
+        print(vpnConf.name)
+        print(log.name)
+        #while True:
+        #    with open(log.name, 'w') as f:
+        #        time.sleep(1)
+        #        f.write(str(i))
+        #        i = i+1
+        #subprocess.call(["openvpn", vpnConf], stdout=log)
+        #subprocess.call(["openvpn", vpnConf.name, ">", log.name])
+        #subprocess.call(["openvpn", vpnConf.name])
+        cmd = "openvpn " + vpnConf.name + " > " + log.name
+        subprocess.call(cmd, shell=True)
+
 def callOpenvpn(vpnConf):
 
     try:
-        tmpOutput = tempfile.NamedTemporaryFile(delete=True)
-        #subprocess.call(["openvpn", vpnConf], stdout=tmpOutput)
-        subprocess.call(["openvpn", vpnConf])
+        tmpLog = tempfile.NamedTemporaryFile(delete=True)
+
+        t1 = threading.Thread(target=startConnect, args=(vpnConf, tmpLog,))
+        t2 = threading.Thread(target=readLog, args=(tmpLog,))
+
+        t1.start()
+        #t2.start()
 
     except Exception as e:
         print(e)
 
     finally:
-        tmpOutput.close()
+        t1.join()
+        #t2.join()
+        tmpLog.close()
 
 
 def callUfw(self):
@@ -93,7 +127,8 @@ class openVpn:
                 with open(tmpVpnFile.name, 'w') as v:
                     v.write(cNew)
 
-            callOpenvpn(tmpVpnFile.name)
+            #callOpenvpn(tmpVpnFile.name)
+            callOpenvpn(tmpVpnFile)
 
         except Exception as e:
             print(e)
