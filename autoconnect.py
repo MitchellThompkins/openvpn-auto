@@ -19,15 +19,24 @@ import time
 #    pass
 
 def readLog(log):
+
     print(log.name)
+    #Make this not while true, instead, wait until an ip has been located
     while True:
         logFile = log.tell()
-        line = log.readline()
+        line = log.readline().decode('utf-8')
         if not line:
             time.sleep(0.1) # Sleep briefly
             continue
         else:
-            print(line)
+            result = \
+            ipMatch = \
+            re.search(r'\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b', line)
+
+            if ipMatch is not None:
+                ip = line[ipMatch.start():ipMatch.end()]
+                print(line)
+                print(ip)
         #yield line
 
 def startConnect(vpnConf, log):
@@ -54,14 +63,14 @@ def callOpenvpn(vpnConf):
         t2 = threading.Thread(target=readLog, args=(tmpLog,))
 
         t1.start()
-        #t2.start()
+        t2.start()
 
     except Exception as e:
         print(e)
 
     finally:
         t1.join()
-        #t2.join()
+        t2.join()
         tmpLog.close()
 
 
