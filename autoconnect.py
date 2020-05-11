@@ -18,66 +18,74 @@ import time
 #        callOpenvpn()
 #    pass
 
-def readLog(log):
-
-    print(log.name)
-    #Make this not while true, instead, wait until an ip has been located
-    while True:
-        logFile = log.tell()
-        line = log.readline().decode('utf-8')
-        if not line:
-            time.sleep(0.1) # Sleep briefly
-            continue
-        else:
-            result = \
-            ipMatch = \
-            re.search(r'\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b', line)
-
-            if ipMatch is not None:
-                ip = line[ipMatch.start():ipMatch.end()]
-                print(line)
-                print(ip)
-        #yield line
-
-def startConnect(vpnConf, log):
-        i = 1
-        print(vpnConf.name)
-        print(log.name)
-        #while True:
-        #    with open(log.name, 'w') as f:
-        #        time.sleep(1)
-        #        f.write(str(i))
-        #        i = i+1
-        #subprocess.call(["openvpn", vpnConf], stdout=log)
-        #subprocess.call(["openvpn", vpnConf.name, ">", log.name])
-        #subprocess.call(["openvpn", vpnConf.name])
-        cmd = "openvpn " + vpnConf.name + " > " + log.name
-        subprocess.call(cmd, shell=True)
 
 def callOpenvpn(vpnConf):
 
+    def launchThread(spawn):
+        def createThread(*k, **kw):
+            try:
+                t = threading.Thread(target=spawn, args=k, kwargs=kw)
+                t.start()
+
+            except Exception as e:
+                print(e)
+
+            finally:
+                return t
+
+        return createThread
+
+    @launchThread
+    def spawnConnectionConfig(log):
+    
+        print(log.name)
+        #Make this not while true, instead, wait until an ip has been located
+        while True:
+            logFile = log.tell()
+            line = log.readline().decode('utf-8')
+            if not line:
+                time.sleep(0.1) # Sleep briefly
+                continue
+            else:
+                ipMatch = \
+                re.search(r'\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b', line)
+    
+                if ipMatch is not None:
+                    ip = line[ipMatch.start():ipMatch.end()]
+                    print(line)
+                    print(ip)
+            #yield line
+    
+    @launchThread
+    def spawnConnection(vpnConf, log):
+            
+        print(vpnConf.read().decode('utf-8'))
+    
+        cmd = "openvpn " + vpnConf.name + " > " + log.name
+        cmd = "openvpn " + vpnConf.name# + " > " + log.name
+        #cmd = "openvpn " + '/etc/openvpn/test3-za-jnb.prod.surfshark.com_tcp.ovpn'
+        # This spawns a blocking process
+        #breakpoint()
+        test = subprocess.Popen(cmd, shell=False)
+        #subprocess.call(cmd, shell=False)
+        #subprocess.call(cmd)
+
     try:
         tmpLog = tempfile.NamedTemporaryFile(delete=True)
-
-        t1 = threading.Thread(target=startConnect, args=(vpnConf, tmpLog,))
-        t2 = threading.Thread(target=readLog, args=(tmpLog,))
-
-        t1.start()
-        t2.start()
+        t1 = spawnConnectionConfig(tmpLog)
+        t2 = spawnConnection(vpnConf, tmpLog)
 
     except Exception as e:
         print(e)
 
-    finally:
-        t1.join()
-        t2.join()
-        tmpLog.close()
+    #finally:
+    #    breakpoint()
+    #    tmpLog.close()
+    #    t1.join()
+    #    t2.join()
 
 
-def callUfw(self):
-    pass
-
-class openVpn:
+class openvpn:
 
     def __init__(self, vpnDirList, tcp, udp, user, passw, vpnFile=None):
         self.vpnDirList = vpnDirList
@@ -128,6 +136,7 @@ class openVpn:
                 f.write(self.passw)
 
             authStr = 'auth-user-pass ' + tmpVpnAuth.name
+            #authStr = 'auth-user-pass ' + '/etc/openvpn/openvpn_auth.auth'
 
             with open(path, 'r') as f:
                 c = f.read()
@@ -172,6 +181,6 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    vpn = openVpn( args.dir, args.tcp, args.udp, args.user, args.passw, args.file  )
+    vpn = openvpn( args.dir, args.tcp, args.udp, args.user, args.passw, args.file  )
     vpn.connect()
 
