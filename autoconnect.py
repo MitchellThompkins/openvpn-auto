@@ -8,59 +8,71 @@ import tempfile
 import threading 
 import time
 
-#def thread(process, **kwargs):
-#    t1 = threading.Thread(target=process, args=(**kwargs))
-#
-#
-#def helper(func):
-#    def wrapper():
-#        tmpOutput = tempfile.NamedTemporaryFile(delete=True)
-#        callOpenvpn()
-#    pass
 
-def readLog(log):
+def launchAutoOpenvpn(vpnConf):
+    """launchAutoOpenvpn
+    
+    @brief
+    
+    @Pre
+    
+    @Post
+    
+    @return None """
 
-    print(log.name)
-    #Make this not while true, instead, wait until an ip has been located
-    while True:
-        logFile = log.tell()
-        line = log.readline().decode('utf-8')
-        if not line:
-            time.sleep(0.1) # Sleep briefly
-            continue
-        else:
-            result = \
-            ipMatch = \
-            re.search(r'\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b', line)
+    def monitorStatus(log):
+        """monitorStatus
+    
+        @brief monitors a log file which has been passed for ip's and vpn
+        connectivity
+    
+        @Pre A file from which can content can be read
+    
+        @Post
+    
+        @return None """
 
-            if ipMatch is not None:
-                ip = line[ipMatch.start():ipMatch.end()]
-                print(line)
-                print(ip)
-        #yield line
-
-def startConnect(vpnConf, log):
-        i = 1
-        print(vpnConf.name)
-        print(log.name)
-        #while True:
-        #    with open(log.name, 'w') as f:
-        #        time.sleep(1)
-        #        f.write(str(i))
-        #        i = i+1
-        #subprocess.call(["openvpn", vpnConf], stdout=log)
-        #subprocess.call(["openvpn", vpnConf.name, ">", log.name])
-        #subprocess.call(["openvpn", vpnConf.name])
+        #Make this not while true, instead, wait until an ip has been located
+        while True:
+            logFile = log.tell()
+            line = log.readline().decode('utf-8')
+            if not line:
+                time.sleep(0.1)
+                continue
+            else:
+                # Regex for an ip address
+                ipMatch = \
+                re.search(r'\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b', line)
+    
+                if ipMatch is not None:
+                    ip = line[ipMatch.start():ipMatch.end()]
+                    print(line)
+                    print(ip)
+            #yield line
+    
+    def startConnection(vpnConf, log):
+        """startConnection
+    
+        @brief This spins up a blocking task which directs output to the
+        specified provided file
+    
+        @Pre A vpn configuration file vpnConf has been passed which is correctly
+        formatted
+    
+        @Pre A file to be used as a log to which content can be written
+    
+        @Post
+    
+        @return None
+        """
         cmd = "openvpn " + vpnConf.name + " > " + log.name
         subprocess.call(cmd, shell=True)
-
-def callOpenvpn(vpnConf):
 
     try:
         tmpLog = tempfile.NamedTemporaryFile(delete=True)
 
-        t1 = threading.Thread(target=startConnect, args=(vpnConf, tmpLog,))
-        t2 = threading.Thread(target=readLog, args=(tmpLog,))
+        t1 = threading.Thread(target=startConnection, args=(vpnConf, tmpLog,))
+        t2 = threading.Thread(target=monitorStatus, args=(tmpLog,))
 
         t1.start()
         t2.start()
@@ -74,17 +86,17 @@ def callOpenvpn(vpnConf):
         tmpLog.close()
 
 
-def callUfw(self):
-    pass
+class autoOpenvpnConf:
 
-class openVpn:
+    def __init__(self, vpnDirList, tcp, udp, user, passw,\
+            networkAllowList, vpnFile=None):
 
-    def __init__(self, vpnDirList, tcp, udp, user, passw, vpnFile=None):
         self.vpnDirList = vpnDirList
         self.tcp = tcp
         self.udp = udp
         self.user = user
         self.passw = passw
+        self.networkAllowList = networkAllowList
         self.vpnFile = vpnFile if vpnFile is not None else None
 
         self.fileList = {}
@@ -110,7 +122,7 @@ class openVpn:
     def getRandomVpnFile(self):
         self.vpnFile = random.choice(list(self.fileList))
 
-    def connect(self):
+    def start(self):
         if self.vpnFile is None:
             self.getRandomVpnFile()
 
@@ -136,8 +148,7 @@ class openVpn:
                 with open(tmpVpnFile.name, 'w') as v:
                     v.write(cNew)
 
-            #callOpenvpn(tmpVpnFile.name)
-            callOpenvpn(tmpVpnFile)
+            launchAutoOpenvpn(tmpVpnFile)
 
         except Exception as e:
             print(e)
@@ -149,7 +160,8 @@ class openVpn:
 
 if __name__ == "__main__":
 
-    parser = argparse.ArgumentParser(description='Get autoconnect openvpn options')
+    parser = argparse.ArgumentParser(description=\
+            'Get autoconnect openvpn options')
 
     # Argument List
     parser.add_argument('--file', '-f',  type=argparse.FileType('r'),\
@@ -170,8 +182,24 @@ if __name__ == "__main__":
     parser.add_argument('--passw', '-p', type=str,\
             help='Pass username for vpn authentication')
 
+    parser.add_argument('--local', '-l', action='store_true',\
+            help='Configure ufw to allow access on typical local nets\
+            192.168.0.X and 192.168.1.X on lan and wlan')
+
+    parser.add_argument('--specify_net', '-s', type=str, nargs='+',\
+            help='Configure ufw to allow access on provided specifc nets')
+
     args = parser.parse_args()
 
-    vpn = openVpn( args.dir, args.tcp, args.udp, args.user, args.passw, args.file  )
-    vpn.connect()
+    if(args.local is None):
+        networkList['192.168.0.0'] = '192.168.0.0'
+        networkList['192.168.1.0'] = '192.168.0.0'
+    else:
+        networkList = args.specify_net
+
+    vpn = autoOpenvpnConf\
+            ( args.dir, args.tcp, args.udp, args.user, args.passw,\
+            networkList, args.file )
+
+    vpn.start()
 
