@@ -5,7 +5,7 @@ import sys
 import random
 import argparse
 import tempfile
-import threading 
+import threading
 import time
 
 #def thread(process, **kwargs):
@@ -59,20 +59,54 @@ def callOpenvpn(vpnConf):
     @launchThread
     def spawnConnection(vpnConf, log):
             
-        print(vpnConf.read().decode('utf-8'))
+        with open(vpnConf.name, 'r') as f:
+            test = tempfile.NamedTemporaryFile(delete=True)
+            cnt = f.read()
+
+            with open(test.name, 'w') as v:
+                v.write(cnt)
+                print(cnt)
+                cmd = "openvpn " + v.name# + " > " + log.name
+                subprocess.call(cmd, shell=True)
+        #print(vpnConf.read().decode('utf-8'))
+
+        #tmpVpnFile = tempfile.NamedTemporaryFile(delete=True)
+        #tmpVpnAuth = tempfile.NamedTemporaryFile(delete=True)
+
+        #path = '/etc/openvpn/za-jnb.prod.surfshark.com_tcp.ovpn'
+
+        #with open(tmpVpnAuth.name, 'w') as f:
+        #    #f.write(self.user)
+        #    f.write('hello')
+        #    f.write('\n')
+        #    #f.write(self.passw)
+        #    f.write('world')
+
+        #authStr = 'auth-user-pass ' + tmpVpnAuth.name
+        ##authStr = 'auth-user-pass ' + '/etc/openvpn/openvpn_auth.auth'
+
+        #with open(path, 'r') as f:
+        #    c = f.read()
+        #    cNew = re.sub(r'\bauth-user-pass\b', authStr, c, flags = re.M)
+
+        #    with open(tmpVpnFile.name, 'w') as v:
+        #        v.write(cNew)
     
-        cmd = "openvpn " + vpnConf.name + " > " + log.name
-        cmd = "openvpn " + vpnConf.name# + " > " + log.name
+        #cmd = "openvpn " + vpnConf.name + " > " + log.name
+        #cmd = "openvpn " + tmpVpnFile.name# + " > " + log.name
         #cmd = "openvpn " + '/etc/openvpn/test3-za-jnb.prod.surfshark.com_tcp.ovpn'
         # This spawns a blocking process
         #breakpoint()
-        test = subprocess.Popen(cmd, shell=False)
-        #subprocess.call(cmd, shell=False)
+        #print(tmpVpnFile.name)
+        #breakpoint()
+        #test = subprocess.Popen(cmd)
+        #test = subprocess.Popen(cmd, shell=False)
+        #subprocess.call(cmd, shell=True)
         #subprocess.call(cmd)
 
     try:
         tmpLog = tempfile.NamedTemporaryFile(delete=True)
-        t1 = spawnConnectionConfig(tmpLog)
+        #t1 = spawnConnectionConfig(tmpLog)
         t2 = spawnConnection(vpnConf, tmpLog)
 
     except Exception as e:
