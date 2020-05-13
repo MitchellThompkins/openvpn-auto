@@ -5,11 +5,11 @@ import sys
 import random
 import argparse
 import tempfile
-import threading 
+import threading
 import time
 
 
-def launchAutoOpenvpn(vpnConf, localExceptions):
+def launchAutoOpenvpn(vpnConf, localExceptions, reset_fw):
     """launchAutoOpenvpn
 
     @brief
@@ -21,7 +21,7 @@ def launchAutoOpenvpn(vpnConf, localExceptions):
     @return None """
 
 
-    def controlUfw(localExceptions, vpnException):
+    def controlUfw(localExceptions, vpnException, reset_fw):
         """launchAutoOpenvpn
 
         @brief
@@ -33,6 +33,10 @@ def launchAutoOpenvpn(vpnConf, localExceptions):
         @return None """
 
         commandList = []
+
+        if reset_fw:
+            commandList.append('echo "y" | sudo ufw reset')
+
         commandList.append('sudo ufw default deny outgoing')
         commandList.append('sudo ufw default deny incoming')
 
@@ -43,7 +47,7 @@ def launchAutoOpenvpn(vpnConf, localExceptions):
         commandList.append('sudo ufw allow out to ' + vpnException +\
                 ' port 1443 proto tcp')
         commandList.append('sudo ufw allow out on tun0 from any to any')
-        commandList.append('ufw enable')
+        commandList.append('echo "y" | sudo ufw enable')
 
         for entry in commandList:
             subprocess.call(entry, shell=True)
@@ -58,7 +62,7 @@ def launchAutoOpenvpn(vpnConf, localExceptions):
         @Pre A file from which can content can be read
 
         @Post
-    
+
         @return None """
 
         #Make this not while true, instead, wait until an ip has been located
@@ -77,7 +81,7 @@ def launchAutoOpenvpn(vpnConf, localExceptions):
     
                 if ipMatch is not None:
                     ip = line[ipMatch.start():ipMatch.end()]
-                    controlUfw(localExceptions, ip)
+                    controlUfw(localExceptions, ip, reset_fw)
                     ipDetected = True
                     print(line)
                     #print(ip)
@@ -124,7 +128,7 @@ def launchAutoOpenvpn(vpnConf, localExceptions):
 class autoOpenvpnConf:
 
     def __init__(self, vpnDirList, tcp, udp, user, passw,\
-            networkAllowList, vpnFile=None):
+            networkAllowList, reset_fw, vpnFile=None):
 
         self.vpnDirList = vpnDirList
         self.tcp = tcp
@@ -132,6 +136,7 @@ class autoOpenvpnConf:
         self.user = user
         self.passw = passw
         self.networkAllowList = networkAllowList
+        self.reset_fw = reset_fw
         self.vpnFile = vpnFile if vpnFile is not None else None
 
         self.fileList = {}
@@ -183,7 +188,7 @@ class autoOpenvpnConf:
                 with open(tmpVpnFile.name, 'w') as v:
                     v.write(cNew)
 
-            launchAutoOpenvpn(tmpVpnFile, self.networkAllowList)
+            launchAutoOpenvpn(tmpVpnFile, self.networkAllowList, self.reset_fw)
 
         except Exception as e:
             print(e)
@@ -224,6 +229,9 @@ if __name__ == "__main__":
     parser.add_argument('--specify_net', '-s', type=str, nargs='+',\
             help='Configure ufw to allow access on provided specifc nets')
 
+    parser.add_argument('--reset_fw', '-r', action='store_true',\
+            help='Reset existing UFW connections (risks exposing public ip)')
+
     args = parser.parse_args()
 
 
@@ -236,7 +244,7 @@ if __name__ == "__main__":
 
     vpn = autoOpenvpnConf\
             ( args.dir, args.tcp, args.udp, args.user, args.passw,\
-            networkList, args.file )
+            networkList, args.reset_fw, args.file )
 
     vpn.start()
 
