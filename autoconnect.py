@@ -21,7 +21,7 @@ def launchAutoOpenvpn(vpnConf, localExceptions, reset_fw):
     @return None """
 
 
-    def controlUfw(localExceptions, vpnException, reset_fw):
+    def controlUfw(localExceptions, vpnException, portException, reset_fw):
         """launchAutoOpenvpn
 
         @brief
@@ -45,7 +45,7 @@ def launchAutoOpenvpn(vpnConf, localExceptions, reset_fw):
             commandList.append( 'sudo ufw allow out to ' + str(entry))
 
         commandList.append('sudo ufw allow out to ' + vpnException +\
-                ' port 1443 proto tcp')
+                ' port ' + portException + ' proto tcp')
         commandList.append('sudo ufw allow out on tun0 from any to any')
         commandList.append('echo "y" | sudo ufw enable')
 
@@ -78,28 +78,32 @@ def launchAutoOpenvpn(vpnConf, localExceptions, reset_fw):
                 # Regex for an ip address
                 ipMatch = \
                 re.search(r'\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b', line)
-    
+
+                portMatch = re.search(r'\b[:]\d{4}\b', line)
+
                 if ipMatch is not None:
                     ip = line[ipMatch.start():ipMatch.end()]
-                    controlUfw(localExceptions, ip, reset_fw)
+                    port = line[portMatch.start()+1:portMatch.end()]
+
+                    controlUfw(localExceptions, ip, port, reset_fw)
+
                     ipDetected = True
                     print(line)
-                    #print(ip)
-            #yield line
-    
+
+
     def startConnection(vpnConf, log):
         """startConnection
-    
+
         @brief This spins up a blocking task which directs output to the
         specified provided file
-    
+
         @Pre A vpn configuration file vpnConf has been passed which is correctly
         formatted
-    
+
         @Pre A file to be used as a log to which content can be written
-    
+
         @Post
-    
+
         @return None
         """
         cmd = "openvpn " + vpnConf.name + " > " + log.name
@@ -215,10 +219,10 @@ if __name__ == "__main__":
 
     parser.add_argument('--udp', action='store_true',\
             help='Allow random selection of udp connections')
-    
+
     parser.add_argument('--user', '-u', type=str,\
             help='Pass username for vpn authentication')
-    
+
     parser.add_argument('--passw', '-p', type=str,\
             help='Pass username for vpn authentication')
 
