@@ -9,33 +9,64 @@ import threading
 import time
 
 
-def launchAutoOpenvpn(vpnConf):
+def launchAutoOpenvpn(vpnConf, localExceptions):
     """launchAutoOpenvpn
-    
+
     @brief
-    
+
     @Pre
-    
+
     @Post
-    
+
     @return None """
 
-    def monitorStatus(log):
+
+    def controlUfw(localExceptions, vpnException):
+        """launchAutoOpenvpn
+
+        @brief
+
+        @Pre
+
+        @Post
+
+        @return None """
+
+        commandList = []
+        commandList.append('sudo ufw default deny outgoing')
+        commandList.append('sudo ufw default deny incoming')
+
+        for entry in localExceptions:
+            commandList.append( 'sudo ufw allow in to ' + str(entry))
+            commandList.append( 'sudo ufw allow out to ' + str(entry))
+
+        commandList.append('sudo ufw allow out to ' + vpnException +\
+                ' port 1443 proto tcp')
+        commandList.append('sudo ufw allow out on tun0 from any to any')
+        commandList.append('ufw enable')
+
+        for entry in commandList:
+            subprocess.call(entry, shell=True)
+
+
+    def monitorStatus(log, localExceptions):
         """monitorStatus
-    
+
         @brief monitors a log file which has been passed for ip's and vpn
         connectivity
-    
+
         @Pre A file from which can content can be read
-    
+
         @Post
     
         @return None """
 
         #Make this not while true, instead, wait until an ip has been located
-        while True:
+        ipDetected = False
+        while not ipDetected:
             logFile = log.tell()
             line = log.readline().decode('utf-8')
+
             if not line:
                 time.sleep(0.1)
                 continue
@@ -46,8 +77,10 @@ def launchAutoOpenvpn(vpnConf):
     
                 if ipMatch is not None:
                     ip = line[ipMatch.start():ipMatch.end()]
+                    controlUfw(localExceptions, ip)
+                    ipDetected = True
                     print(line)
-                    print(ip)
+                    #print(ip)
             #yield line
     
     def startConnection(vpnConf, log):
@@ -71,8 +104,10 @@ def launchAutoOpenvpn(vpnConf):
     try:
         tmpLog = tempfile.NamedTemporaryFile(delete=True)
 
-        t1 = threading.Thread(target=startConnection, args=(vpnConf, tmpLog,))
-        t2 = threading.Thread(target=monitorStatus, args=(tmpLog,))
+        t1 = threading.Thread(target=startConnection,\
+                args=(vpnConf, tmpLog))
+        t2 = threading.Thread(target=monitorStatus,\
+                args=(tmpLog, localExceptions))
 
         t1.start()
         t2.start()
@@ -148,7 +183,7 @@ class autoOpenvpnConf:
                 with open(tmpVpnFile.name, 'w') as v:
                     v.write(cNew)
 
-            launchAutoOpenvpn(tmpVpnFile)
+            launchAutoOpenvpn(tmpVpnFile, self.networkAllowList)
 
         except Exception as e:
             print(e)
@@ -191,9 +226,11 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    if(args.local is None):
-        networkList['192.168.0.0'] = '192.168.0.0'
-        networkList['192.168.1.0'] = '192.168.0.0'
+
+    networkList = []
+    if(args.local):
+        networkList.append('192.168.0.0/24')
+        networkList.append('192.168.1.0/24')
     else:
         networkList = args.specify_net
 
