@@ -154,14 +154,30 @@ class autoOpenvpnConf:
 
         self.getVpnFiles()
 
+        if self.fileList is None and self.vpnFile is None:
+            sys.exit('No properly configured vpn file provided nor directory\
+                    with properly formatted vpn files')
+
+
     def getVpnFiles(self):
         for file in os.listdir( self.vpnDirList ):
-            if self.tcp:
-                if file.endswith("tcp.ovpn"):
-                    self.fileList[file] = file
-            if self.udp:
-                if file.endswith("udp.ovpn"):
-                    self.fileList[file] = file
+            if file.endswith(".ovpn"):
+
+                try:
+                    path = os.path.join(self.vpnDirList, file)
+                    with open(path, 'r') as f:
+                        c = f.read()
+                        protoMatch = re.search(r'\b(.?proto).*\b', c)
+                        proto = c[protoMatch.start()+len('proto')+1:protoMatch.end()]
+
+                        if self.tcp and (str(proto) == 'tcp'):
+                            self.fileList[file] = file
+
+                        elif self.udp and (str(proto) == 'udp'):
+                            self.fileList[file] = file
+
+                except Exception as e:
+                    print(e)
 
     def getRandomVpnFile(self):
         self.vpnFile = random.choice(list(self.fileList))
@@ -232,6 +248,9 @@ if __name__ == "__main__":
 
     parser.add_argument('--specify_net', '-s', type=str, nargs='+',\
             help='Configure ufw to allow access on provided specifc nets')
+
+    parser.add_argument('--auto', '-a', action='store_true',\
+            help='Attempt to reconnect vpn service on detected failure')
 
     parser.add_argument('--reset_fw', '-r', action='store_true',\
             help='Reset existing UFW connections (risks exposing public ip)')
