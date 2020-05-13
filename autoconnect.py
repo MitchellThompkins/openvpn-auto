@@ -9,7 +9,7 @@ import threading
 import time
 
 
-def launchAutoOpenvpn(vpnConf, localExceptions, reset_fw):
+def launchAutoOpenvpn(vpnConf, localExceptions, reset_fw, protocol):
     """launchAutoOpenvpn
 
     @brief
@@ -21,7 +21,8 @@ def launchAutoOpenvpn(vpnConf, localExceptions, reset_fw):
     @return None """
 
 
-    def controlUfw(localExceptions, vpnException, portException, reset_fw):
+    def controlUfw(localExceptions, vpnException, portException,\
+            protocol, reset_fw):
         """launchAutoOpenvpn
 
         @brief
@@ -35,6 +36,7 @@ def launchAutoOpenvpn(vpnConf, localExceptions, reset_fw):
         commandList = []
 
         if reset_fw:
+            #breakpoint()
             commandList.append('echo "y" | sudo ufw reset')
 
         commandList.append('sudo ufw default deny outgoing')
@@ -45,7 +47,7 @@ def launchAutoOpenvpn(vpnConf, localExceptions, reset_fw):
             commandList.append( 'sudo ufw allow out to ' + str(entry))
 
         commandList.append('sudo ufw allow out to ' + vpnException +\
-                ' port ' + portException + ' proto tcp')
+                ' port ' + portException + ' proto ' + protocol)
         commandList.append('sudo ufw allow out on tun0 from any to any')
         commandList.append('echo "y" | sudo ufw enable')
 
@@ -53,7 +55,7 @@ def launchAutoOpenvpn(vpnConf, localExceptions, reset_fw):
             subprocess.call(entry, shell=True)
 
 
-    def monitorStatus(log, localExceptions):
+    def monitorStatus(log, localExceptions, protocol):
         """monitorStatus
 
         @brief monitors a log file which has been passed for ip's and vpn
@@ -85,7 +87,7 @@ def launchAutoOpenvpn(vpnConf, localExceptions, reset_fw):
                     ip = line[ipMatch.start():ipMatch.end()]
                     port = line[portMatch.start()+1:portMatch.end()]
 
-                    controlUfw(localExceptions, ip, port, reset_fw)
+                    controlUfw(localExceptions, ip, port, protocol, reset_fw)
 
                     ipDetected = True
                     print(line)
@@ -115,7 +117,7 @@ def launchAutoOpenvpn(vpnConf, localExceptions, reset_fw):
         t1 = threading.Thread(target=startConnection,\
                 args=(vpnConf, tmpLog))
         t2 = threading.Thread(target=monitorStatus,\
-                args=(tmpLog, localExceptions))
+                args=(tmpLog, localExceptions, protocol))
 
         t1.start()
         t2.start()
@@ -149,14 +151,24 @@ class autoOpenvpnConf:
             sys.exit('Must specify either file or dir to collection of files')
 
         if tcp is False and udp is False and vpnFile is None:
-            sys.exit('At least one protocol must be specified if no vpn conf is\
-                    specified')
+            sys.exit(\
+            'Must specify a protocol or provide a vpn conf file')
+
+        if tcp is True and udp is True:
+            sys.exit(\
+            'Must specify only one protocol')
+        elif self.tcp:
+            self.protocol = 'tcp'
+        elif self.udp:
+            self.protocol = 'udp'
+        else:
+            self.protocol = None #Shouldn't be possible, but just in case
 
         self.getVpnFiles()
 
-        if self.fileList is None and self.vpnFile is None:
-            sys.exit('No properly configured vpn file provided nor directory\
-                    with properly formatted vpn files')
+        if bool(self.fileList) is False and self.vpnFile is None:
+            sys.exit(\
+            'Missing vpn conf file or proivded dir contains no vpn conf file')
 
 
     def getVpnFiles(self):
@@ -168,12 +180,12 @@ class autoOpenvpnConf:
                     with open(path, 'r') as f:
                         c = f.read()
                         protoMatch = re.search(r'\b(.?proto).*\b', c)
-                        proto = c[protoMatch.start()+len('proto')+1:protoMatch.end()]
 
-                        if self.tcp and (str(proto) == 'tcp'):
-                            self.fileList[file] = file
+                        proto =\
+                        c[protoMatch.start()+len('proto')+1:protoMatch.end()]
 
-                        elif self.udp and (str(proto) == 'udp'):
+                        # If the regex'd protocol matches the defined protocol
+                        if str(proto) == self.protocol:
                             self.fileList[file] = file
 
                 except Exception as e:
@@ -208,7 +220,8 @@ class autoOpenvpnConf:
                 with open(tmpVpnFile.name, 'w') as v:
                     v.write(cNew)
 
-            launchAutoOpenvpn(tmpVpnFile, self.networkAllowList, self.reset_fw)
+            launchAutoOpenvpn(tmpVpnFile, self.networkAllowList,\
+                    self.reset_fw, self.protocol)
 
         except Exception as e:
             print(e)
@@ -253,7 +266,7 @@ if __name__ == "__main__":
             help='Attempt to reconnect vpn service on detected failure')
 
     parser.add_argument('--reset_fw', '-r', action='store_true',\
-            help='Reset existing UFW connections (risks exposing public ip)')
+            help='Reset existing ufw connections (risks exposing public ip)')
 
     args = parser.parse_args()
 
