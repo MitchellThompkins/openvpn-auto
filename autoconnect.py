@@ -48,6 +48,8 @@ def launchAutoOpenvpn(vpnConf, localExceptions, reset_fw, protocol):
         commandList.append('sudo ufw allow out to ' + vpnException +\
                 ' port ' + portException + ' proto ' + protocol)
         commandList.append('sudo ufw allow out on tun0 from any to any')
+        #commandList.append('sudo ufw allow in on tun0 to any port 51413')
+        commandList.append('sudo ufw allow in on tun0 to any')
         commandList.append('echo "y" | sudo ufw enable')
 
         for entry in commandList:
@@ -261,9 +263,9 @@ if __name__ == "__main__":
     parser.add_argument('--specify_net', '-s', type=str, nargs='+',\
             help='Configure ufw to allow access on provided specifc nets')
 
-    parser.add_argument('--auto', '-a', action='store_true',\
-            help='Attempt to reconnect vpn service on detected failure\
-            (risks exposing public ip)')
+    #parser.add_argument('--auto', '-a', action='store_true',\
+    #        help='Attempt to reconnect vpn service on detected failure\
+    #        (risks exposing public ip)')
 
     parser.add_argument('--reset_fw', '-r', action='store_true',\
             help='Reset existing ufw connections \
